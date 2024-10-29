@@ -17,7 +17,6 @@ spec:
       containers:
       - image: httpd:alpine3.19
         name: httpd
-
   strategy:
     type: RollingUpdate
     rollingUpdate:
