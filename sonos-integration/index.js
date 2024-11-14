@@ -97,6 +97,53 @@ app.get('/auth/callback', async (req, res) => {
 });
 
 
+
+
+//SONOS 
+
+// Endpoint para hacer el discovery de households para un usuario específico
+app.get('/households', async (req, res) => {
+    const { usuario } = req.query;
+
+    if (!usuario) {
+        return res.status(400).send('Error: Se requiere el parámetro de usuario.');
+    }
+
+    // Buscar el token en la base de datos para el usuario
+    db.get('SELECT token FROM usuarios WHERE usuario = ?', [usuario], async (err, row) => {
+        if (err) {
+            console.error('Error al consultar la base de datos:', err.message);
+            return res.status(500).send('Error al consultar el token del usuario.');
+        }
+
+        if (!row) {
+            return res.status(404).send('Error: Usuario no encontrado.');
+        }
+
+        const accessToken = row.token;
+
+        try {
+            // Hacer la solicitud a la API de Sonos para obtener los households
+            const response = await axios.get('https://api.ws.sonos.com/control/api/v1/households', {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            // Retornar los resultados de la respuesta
+            res.json(response.data);
+        } catch (error) {
+            console.error('Error al obtener los households de Sonos:', error.response ? error.response.data : error.message);
+            res.status(500).send('Error al obtener los households de Sonos.');
+        }
+    });
+});
+
+
+
+// usuarios
+
 // Endpoint para obtener todos los usuarios y sus tokens
 app.get('/usuarios', (req, res) => {
     // Consultar todos los usuarios en la base de datos
