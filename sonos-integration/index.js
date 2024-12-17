@@ -1,12 +1,16 @@
 const express = require('express');
+const path = require('path');
 const axios = require('axios');
 const sqlite3 = require('sqlite3').verbose();
 const app = express();
 
+
+const url = 'https://af8d-2800-2285-9000-2ef-9c1d-dfc5-433d-7fe.ngrok-free.app'
+
 // Variables de configuración para Sonos (Reemplaza estos valores con tus credenciales)
 const clientId = 'b9ee86ec-a5e0-4693-8f2f-519259fe1956';
 const clientSecret = 'bcfdbe54-5791-42f8-a1ce-1951c178f8ca';
-const redirectUri = 'https://05e5-186-107-1-31.ngrok-free.app/auth/callback'; // Debe coincidir con la URL configurada en Sonos
+const redirectUri = `${url}/auth/callback`; // Debe coincidir con la URL configurada en Sonos
 
 // Conectar y configurar la base de datos SQLite
 const db = new sqlite3.Database('./tokens.db'); // Guarda la base de datos en un archivo llamado tokens.db
@@ -23,6 +27,8 @@ db.serialize(() => {
 
 // Middleware para parsear JSON
 app.use(express.json());
+
+app.use('/static', express.static(path.join(__dirname, 'public')));
 
 // Función para codificar en Base64 las credenciales
 const encodeCredentials = (clientId, clientSecret) => {
@@ -139,6 +145,105 @@ app.get('/households', async (req, res) => {
         }
     });
 });
+
+
+// Groups
+
+app.get('/households/:householdId/groups', async (req, res) => {
+    const { usuario } = req.query;
+    const { householdId } = req.params;
+
+    if (!usuario) {
+        return res.status(400).send('Error: Se requiere el parámetro de usuario.');
+    }
+
+    // Buscar el token en la base de datos para el usuario
+    db.get('SELECT token FROM usuarios WHERE usuario = ?', [usuario], async (err, row) => {
+        if (err) {
+            console.error('Error al consultar la base de datos:', err.message);
+            return res.status(500).send('Error al consultar el token del usuario.');
+        }
+
+        if (!row) {
+            return res.status(404).send('Error: Usuario no encontrado.');
+        }
+
+        const accessToken = row.token;
+
+        try {
+
+            const response = await axios.get(`https://api.ws.sonos.com/control/api/v1/households/${householdId}/groups`, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                }
+            });
+
+            // Retornar los resultados de la respuesta
+            res.json(response.data);
+        } catch (error) {
+            console.error('Error al obtener los groups para el household de Sonos:', error.response ? error.response.data : error.message);
+            res.status(500).send('Error al obtener los households de Sonos.');
+        }
+    });
+});
+
+
+// Audio clip
+app.get('/players/:playerId/audioClip', async (req, res) => {
+    const { usuario } = req.query;
+    const { playerId } = req.params;
+
+    console.log({ usuario, playerId })
+
+    if (!usuario) {
+        return res.status(400).send('Error: Se requiere el parámetro de usuario.');
+    }
+
+    // Buscar el token en la base de datos para el usuario
+    db.get('SELECT token FROM usuarios WHERE usuario = ?', [usuario], async (err, row) => {
+        if (err) {
+            console.error('Error al consultar la base de datos:', err.message);
+            return res.status(500).send('Error al consultar el token del usuario.');
+        }
+
+        if (!row) {
+            return res.status(404).send('Error: Usuario no encontrado.');
+        }
+
+        const accessToken = row.token;
+
+        console.log({ accessToken })
+
+        const body = {
+            name: "Cha-Ching",  // Nombre del clip
+            appId: "Cha-Ching Shopify",  // Identificador de la app
+            streamUrl: `${url}/static/cash.mp3`,  // URL del archivo de audio que se va a reproducir
+            volume: 50,  // Puedes ajustar el volumen según tu preferencia
+            priority: 1   // Prioridad del audio clip}
+        }
+
+        try {
+
+            const response = await axios.post(
+                `https://api.ws.sonos.com/control/api/v1/players/${playerId}/audioClip`,
+                body,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                    },
+                }
+            );
+
+
+            // Retornar los resultados de la respuesta
+            res.json(response.data);
+        } catch (error) {
+            console.error('Error al reproducir audio clip en Sonos:', error.response ? error.response.data : error.message);
+            res.status(500).send('Error al reproducir audio clip en Sonos:');
+        }
+    });
+});
+
 
 
 
