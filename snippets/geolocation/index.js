@@ -13,6 +13,6 @@ console.time('geoip-query');
 response = reader.country('2800:2285:9000:2de:5c41:b317:808a:38d7');
 console.timeEnd('geoip-query');
 
-console.log(response.country.isoCode);
+console.log(response.country);
 
 setInterval(() => { }, 1000);
