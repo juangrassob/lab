@@ -17,8 +17,29 @@ spec:
       labels:
         app: linkding
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: k3s-node1
       containers:
       - image: sissbruecker/linkding:latest
         name: linkding
-        resources: {}
+        volumeMounts:
+          - mountPath: "/etc/linkding/data"
+            name: linkding-pvc
+        ports:
+          - containerPort: 9090
+        env:
+          - name: LD_SUPERUSER_NAME
+            valueFrom:
+              secretKeyRef:
+                name: super-user-credentials
+                key: superuser-name
+          - name: LD_SUPERUSER_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: super-user-credentials
+                key: superuser-password
+      volumes:
+        - name: linkding-pvc
+          persistentVolumeClaim:
+            claimName: linkding-pvc
 status: {}
